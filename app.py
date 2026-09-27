@@ -1,4 +1,5 @@
 import os
+import logging
 import uvicorn
 from fastapi import FastAPI
 from langserve import add_routes
@@ -8,10 +9,15 @@ from langchain.agents import create_agent
 from pydantic import BaseModel, Field
 from langchain_core.runnables import RunnableLambda
 
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("verilog_agent")
+
 # --- 1. Define Tools: each returns a verified Verilog module ---
 @tool
-def generate_half_adder() -> str:
-    """Generate Verilog code for a Half Adder (1-bit sum + carry, no carry-in)."""
+def generate_half_adder(circuit_name: str = "half_adder") -> str:
+    """Generate Verilog code for a Half Adder (1-bit sum + carry, no carry-in).
+    circuit_name: optional label, leave as default 'half_adder'.
+    """
     return (
         "module half_adder(\n"
         "    input  a,\n"
@@ -25,8 +31,10 @@ def generate_half_adder() -> str:
     )
 
 @tool
-def generate_full_adder() -> str:
-    """Generate Verilog code for a Full Adder (1-bit sum + carry-out, with carry-in)."""
+def generate_full_adder(circuit_name: str = "full_adder") -> str:
+    """Generate Verilog code for a Full Adder (1-bit sum + carry-out, with carry-in).
+    circuit_name: optional label, leave as default 'full_adder'.
+    """
     return (
         "module full_adder(\n"
         "    input  a,\n"
@@ -41,8 +49,10 @@ def generate_full_adder() -> str:
     )
 
 @tool
-def generate_sr_flip_flop() -> str:
-    """Generate Verilog code for a clocked SR (Set-Reset) Flip-Flop."""
+def generate_sr_flip_flop(circuit_name: str = "sr_flip_flop") -> str:
+    """Generate Verilog code for a clocked SR (Set-Reset) Flip-Flop.
+    circuit_name: optional label, leave as default 'sr_flip_flop'.
+    """
     return (
         "module sr_flip_flop(\n"
         "    input      clk,\n"
@@ -64,8 +74,10 @@ def generate_sr_flip_flop() -> str:
     )
 
 @tool
-def generate_d_flip_flop() -> str:
-    """Generate Verilog code for a D (Data) Flip-Flop with asynchronous reset."""
+def generate_d_flip_flop(circuit_name: str = "d_flip_flop") -> str:
+    """Generate Verilog code for a D (Data) Flip-Flop with asynchronous reset.
+    circuit_name: optional label, leave as default 'd_flip_flop'.
+    """
     return (
         "module d_flip_flop(\n"
         "    input      clk,\n"
@@ -144,6 +156,7 @@ class AgentInput(BaseModel):
 
 def format_for_agent(x) -> dict:
     user_input = x["input"] if isinstance(x, dict) else x.input
+    logger.info("Agent input: %r", user_input)
     return {"messages": [("user", user_input)]}
 
 def extract_text_response(agent_output: dict) -> str:
@@ -162,9 +175,17 @@ def extract_text_response(agent_output: dict) -> str:
 
     if messages:
         last = messages[-1]
-        return getattr(last, "content", str(last))
+        content = getattr(last, "content", str(last))
+        if not content:
+            return (
+                "[Agent returned an empty response. This usually means the model call "
+                "returned zero generations. Check the Render logs for the raw "
+                "ChatGoogleGenerativeAI output, and confirm GEMINI_API_KEY and MODEL_NAME "
+                "are set correctly.]"
+            )
+        return content
 
-    return str(agent_output)
+    return f"[No messages returned. Raw agent output: {agent_output}]"
 
 formatted_agent_chain = (
     RunnableLambda(format_for_agent)
