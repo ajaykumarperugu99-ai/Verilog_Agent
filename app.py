@@ -127,7 +127,7 @@ tools = [generate_half_adder, generate_full_adder, generate_sr_flip_flop,
 # --- 2. Initialize Model & Agent ---
 GOOGLE_API_KEY = os.environ.get("GEMINI_API_KEY")
 
-MODEL_NAME = os.environ.get("MODEL_NAME", "gemma-3-1b-it")
+MODEL_NAME = os.environ.get("MODEL_NAME", "gemini-2.5-flash")
 
 llm_flash = ChatGoogleGenerativeAI(
     model=MODEL_NAME,
