@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: verilog-agent
+    env: python
+    plan: free
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "python app.py"
+    envVars:
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: MODEL_NAME
+        value: gemma-3-1b-it
